@@ -1,6 +1,8 @@
 # picoctf-scoreboard
 Custom scoreboard for your [picoCTF](https://play.picoctf.org/classrooms/6859) classroom.
 
+![image](https://github.com/samu-delucas/picoctf-scoreboard/assets/55582807/293632a0-ac6b-45b5-a282-7fbd98170df5)
+
 ## Why
 
 PicoCTF does not have scoreboards for classrooms. This is a simple web app that fetches the data using the picoCTF API and displays it in a user-friendly way.
