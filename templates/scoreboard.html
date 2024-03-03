@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scoreboard</title>
+    <meta charset="utf-8">
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body { height:100vh; padding:0; margin:0; width:100%; }
+        .table td.fit, 
+        .table th.fit {
+            white-space: nowrap;
+            width: 10%;
+        }
+    </style>
+    <script>
+        {% if refresh %}
+        function refreshLeaderboard() {
+            window.location.reload();
+        }
+        setTimeout(refreshLeaderboard, {{ refresh }} * 1000 ); // in milliseconds
+        {% endif %}
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@2.0.0"></script>
+</head>
+
+<body class="d-flex flex-column">
+    <div class="flex-grow-1 mt-5">
+        <div class="container">
+            <div class="d-flex justify-content-start align-items-center mb-3">
+                <a href="https://picoctf.org/" target="_blank">
+                    <img src="{{ url_for('static', filename='logo.png') }}" class="img-fluid me-3" alt="Logo" style="max-height: 2.5em;">
+                </a>
+                <h1 class="my-0">Scoreboard</h1>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <canvas id="myChart" width="3" height="1"></canvas>
+                </div>
+            </div>
+
+            <table class="table table-striped mt-4">
+                <thead>
+                    <tr>
+                        <th class="text-center fit">Place</th>
+                        <th>Username</th>
+                        <th class="text-center fit">Solved</th>
+                        <th class="text-center fit">Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in scoreboard.values() %}
+                    <tr {% if loop.index <= 3 %} class="fw-bold"{% endif %}>
+                        <td class="text-center fit">
+                            {% if loop.index <= 3 %}
+                                {% if loop.index == 1 %}
+                                    🥇
+                                {% elif loop.index == 2 %}
+                                    🥈
+                                {% elif loop.index == 3 %}
+                                    🥉
+                                {% endif %}
+                            {% else %}
+                                {{ loop.index }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ user["username"] }}
+                        </td>
+                        <td class="text-center fit">
+                            {{ user["solves"]|length }}
+                        </td>
+                        <td class="text-center fit">
+                            {{ user["points"] }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer class="footer bg-dark text-center mt-5 py-2">
+		<div class="container text-secondary text-center d-flex flex-column align-items-center">
+            <small>Scoreboard by <a href="https://github.com/samu-delucas/" class="text-secondary link-underline-secondary" target="_blank">samu-delucas</a></small>
+		</div>
+	</footer>
+
+    <script>
+        // Append alpha to the colors, except for the hovered index; also cursor: pointer
+        function legendHover(evt, item, legend) {
+            const ALPHA = '15';
+            legend.chart.data.datasets.forEach((color, index, colors) => {
+                if (index !== item.datasetIndex) {
+                    colors[index].backgroundColor = colors[index].backgroundColor + ALPHA
+                    colors[index].borderColor = colors[index].borderColor + ALPHA
+                }
+            });
+            legend.chart.update();
+            document.getElementById('myChart').style.cursor = 'pointer';
+        }
+        // Removes the alpha channel from background colors
+        function legendLeave(evt, item, legend) {
+            legend.chart.data.datasets.forEach((color, index, colors) => {
+                if (colors[index].backgroundColor.length === 9) {
+                    colors[index].backgroundColor = colors[index].backgroundColor.slice(0, -2);
+                    colors[index].borderColor = colors[index].borderColor.slice(0, -2);
+                }
+            });
+            legend.chart.update();
+            document.getElementById('myChart').style.cursor = 'default';
+        }
+
+        const colorPalette = [
+            '#FF2A1B', '#FF2592', '#2E4DFF', '#2CBCFF', '#00B822',
+            '#6CFF2D', '#FAE316', '#FFA826','#6A331F', '#868686',
+        ];
+
+        var ctx = document.getElementById('myChart').getContext('2d');
+        Chart.defaults.font.family = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"';
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {% for user in scoreboard.values() %}
+                        {% if loop.index0 < 10 %}
+                            {
+                                borderColor: colorPalette[{{ loop.index0 }} % 10],
+                                backgroundColor: colorPalette[{{ loop.index0 }} % 10],
+                                label: '{{ user["username"] }}',
+                                data: [
+                                    {% for challenge in user["solves"].values() %}
+                                    {
+                                        x: "{{ challenge['timestamp'] }}",
+                                        y: {{ challenge['total_points'] }}
+                                    },
+                                    {% endfor %}
+                                ]
+                            },
+                        {% endif %}
+                    {% endfor %}
+                ],
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 10 Users',
+                    },
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 10,
+                        },
+                        onHover: legendHover,
+                        onLeave: legendLeave,
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                            },
+                            drag: {
+                                enabled: true,
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x',
+                        },                        
+                    },
+                    crosshair: {
+                        line: {
+                            color: '#111',
+                            width: 1,
+                            dashPattern: [5, 4],
+                            zoom: {
+                                enabled: false,
+                            },
+                        },
+                    },
+                },
+                // https://stackoverflow.com/a/70191235
+                onHover: (event, activeElements) => {
+                    if (activeElements?.length > 0) {
+                        event.native.target.style.cursor = 'pointer';
+                    } else {
+                        event.native.target.style.cursor = 'auto';
+                    }
+                },
+
+                scales: {
+                    x: {
+                        type: 'time',
+                        ticks: {
+                            source: 'auto',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 10,
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                    }
+                },
+                elements: {
+                    line: {
+                        fill: false,
+                        borderWidth: 1.5
+                    },
+                    point: {
+                        radius: 2,
+                    }
+                },
+                animation: {
+                    duration: 0.1
+                }
+            },
+        });
+    </script>
+</body>
+</html>
